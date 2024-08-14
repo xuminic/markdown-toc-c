@@ -16,16 +16,34 @@ static int backtick_conclude(char *s);
 
 int main(int argc, char **argv) 
 {
-	FILE	*fp;
+	FILE	*fin;
 
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <markdown-file>\n", argv[0]);
-		return 1;
+	while (--argc && ((**++argv == '-') || (**argv == '+'))) {
+                if (!strcmp(*argv, "-V") || !strcmp(*argv, "--version")) {
+                        puts("md_toc 1.0");
+                        return 0;
+                } else if (!strcmp(*argv, "-H") || !strcmp(*argv, "--help")) {
+			puts("Usage: md_toc <markdown-file>");
+                        return 0;
+		} else {
+                        fprintf(stderr, "%s: unknown parameter.\n", *argv);
+                        return -1;
+                }
 	}
 
-	if ((fp = fopen(argv[1], "r")) != NULL) {
-		make_toc(fp);
-		fclose(fp);
+	/* input from stdin */
+        if ((argc == 0) || !strcmp(*argv, "--")) {
+		make_toc(stdin);
+                return 0;
+        }
+
+	for ( ; argc; argc--, argv++) {
+		if ((fin = fopen(*argv, "r")) == NULL) {
+			perror(*argv);
+			continue;
+		}
+		make_toc(fin);
+		fclose(fin);
 	}
 	return 0;
 }
