@@ -1,9 +1,10 @@
+TARGET = md-toc
 
 all:
-	gcc -Wall -O3 -o md_toc markdown-toc.c
+	gcc -Wall -O3 -o $(TARGET) markdown-toc.c
 
 clean:
-	rm md_toc
+	rm $(TARGET)
 
 install:
-	cp -f md_toc ~/bin
+	cp -f $(TARGET) ~/bin

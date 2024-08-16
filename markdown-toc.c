@@ -4,11 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINE_LENGTH 1024
+#define MAX_LINE_LENGTH 80
 
-static int make_toc(FILE *fp);
-static int lets_toc(char *line);
-static int print_toc(char *s);
+static int generate_toc(char *fname, int flag);
+static int file_append(FILE *fp, FILE *fn);
+static int make_toc(char *line, FILE *fout, int backtick);
+static int lets_toc(char *line, FILE *fout);
+static int print_toc(char *s, FILE *fout);
 static char *backtick_find(char *s, int *n);
 static char *backtick_match(char *s, int n);
 static int backtick_conclude(char *s);
@@ -16,15 +18,17 @@ static int backtick_conclude(char *s);
 
 int main(int argc, char **argv) 
 {
-	FILE	*fin;
+	int	owrt = 0;
 
 	while (--argc && ((**++argv == '-') || (**argv == '+'))) {
                 if (!strcmp(*argv, "-V") || !strcmp(*argv, "--version")) {
                         puts("md_toc 1.0");
                         return 0;
                 } else if (!strcmp(*argv, "-H") || !strcmp(*argv, "--help")) {
-			puts("Usage: md_toc <markdown-file>");
+			puts("Usage: md_toc [-o] <markdown-file ...>");
                         return 0;
+		} else if (!strcmp(*argv, "-o") || !strcmp(*argv, "--overwrite")) {
+			owrt = 2;
 		} else {
                         fprintf(stderr, "%s: unknown parameter.\n", *argv);
                         return -1;
@@ -33,30 +37,104 @@ int main(int argc, char **argv)
 
 	/* input from stdin */
         if ((argc == 0) || !strcmp(*argv, "--")) {
-		make_toc(stdin);
+		generate_toc(NULL, 0);
                 return 0;
         }
 
 	for ( ; argc; argc--, argv++) {
-		if ((fin = fopen(*argv, "r")) == NULL) {
-			perror(*argv);
-			continue;
-		}
-		make_toc(fin);
-		fclose(fin);
+		generate_toc(*argv, owrt);
 	}
 	return 0;
 }
 
+static int generate_toc(char *fname, int flag)
+{
+	FILE	*fin, *ftoc, *fhead, *fbody;
+	char    line[MAX_LINE_LENGTH];
+	int	tocsm, btsm;
 
-static int make_toc(FILE *fp)
+	if (fname == NULL) {
+		fin = stdin;
+	} else if ((fin = fopen(fname, "r+")) == NULL) {
+		perror(fname);
+		return 1;
+	}
+
+	ftoc  = tmpfile();
+	fhead = tmpfile();
+	fbody = tmpfile();
+
+	tocsm = btsm = 0;
+	while (fgets(line, sizeof(line), fin)) {
+		switch (tocsm) {
+		case 0:
+			fputs(line, fhead);
+			if (!strncmp(line, "<!--toc-->", 10)) {
+				tocsm = 1;
+			}
+			break;
+		case 1:
+			if (!strncmp(line, "<!--toc-->", 10)) {
+				fputs(line, fbody);
+				tocsm = 2;
+			}
+			break;
+		case 2:
+			fputs(line, fbody);
+			break;	/* inside the TOC */
+		}
+		btsm = make_toc(line, ftoc, btsm);
+	}
+
+	if (fname == NULL) {
+		fin = stdout;
+	} else {
+		rewind(fin);
+	}
+	switch (flag) {
+	case 0:		/* only print the TOC part */
+		file_append(stdout, ftoc);
+		break;
+	case 1:		/* print the full markdown page */
+		file_append(stdout, fhead);
+		getchar();
+		file_append(stdout, ftoc);
+		getchar();
+		file_append(stdout, fbody);
+		break;
+	case 2:		/* overwrite the orignal markdown page */
+		file_append(fin, fhead);
+		file_append(fin, ftoc);
+		file_append(fin, fbody);
+		break;
+	}
+	if (fname) {
+		fclose(fin);
+	}
+	return 0;
+}		
+
+static int file_append(FILE *fp, FILE *fn)
+{
+	char	line[MAX_LINE_LENGTH];
+	
+	rewind(fn);
+	while (fgets(line, sizeof(line), fn)) {
+		fputs(line, fp);
+	}
+	fclose(fn);
+	return 0;
+}
+
+#if 0
+static int make_toc(FILE *fin, FILE *fout)
 {
 	char	*s, line[MAX_LINE_LENGTH];
 	int	backtick = 0;
 
-	while (fgets(line, sizeof(line), fp)) { 
+	while (fgets(line, sizeof(line), fin)) { 
 		if (backtick == 0) {
-			backtick = lets_toc(line);
+			backtick = lets_toc(line, fout);
 		} else {
 			s = backtick_match(line, backtick);
 			if (s) {
@@ -66,9 +144,21 @@ static int make_toc(FILE *fp)
 	}
 	return 0;
 }
+#endif
+static int make_toc(char *line, FILE *fout, int backtick)
+{
+	char	*s;
+
+	if (backtick == 0) {
+		backtick = lets_toc(line, fout);
+	} else if ((s = backtick_match(line, backtick)) != NULL) {
+		backtick = backtick_conclude(s);
+	}
+	return backtick;
+}
 
 
-static int lets_toc(char *line)
+static int lets_toc(char *line, FILE *fout)
 {
 	int	i;
 
@@ -76,19 +166,19 @@ static int lets_toc(char *line)
 		if (isspace(*line)) {
 			continue;	/* heading text allow at most 3 spaces */
 		} else if (*line == '#') {
-			print_toc(line);
-			return 0;
+			print_toc(line, fout);
+			break;
 		} else {
 			break;	/* not a heading text */
 		}
 	}
-	/* not a heading text, so lets try find some backticks */
+	/* lets try find some backticks */
 	return backtick_conclude(line);
 }
 
 
 /* 's' points to the first validated '#' */
-static int print_toc(char *s)
+static int print_toc(char *s, FILE *fout)
 {
 	char	anchor[MAX_LINE_LENGTH];
 	int	i, n;
@@ -112,9 +202,10 @@ static int print_toc(char *s)
 	}
 
 	/* print the TOC line */
-	printf("%*s- [%s](#%s)\n", (n - 1) * 2, "", s, anchor);
+	fprintf(fout, "%*s- [%s](#%s)\n", (n - 1) * 2, "", s, anchor);
 	return n;
 }
+
 
 /* from 's' searching for backticks,  return NULL if not found
  * or return the pointer to the first character after backticks 
@@ -168,6 +259,8 @@ static int backtick_conclude(char *s)
 		}
 		if ((s = backtick_match(s, n)) == NULL) {
 			break;
+		} else {
+			n = 0;	/* reset after matched */
 		}
 	}
 	return n;
