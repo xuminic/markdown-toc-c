@@ -29,6 +29,8 @@ int main(int argc, char **argv)
                         return 0;
 		} else if (!strcmp(*argv, "-o") || !strcmp(*argv, "--overwrite")) {
 			owrt = 2;
+		} else if (!strcmp(*argv, "-O") || !strcmp(*argv, "--dryrun")) {
+			owrt = 1;
 		} else {
                         fprintf(stderr, "%s: unknown parameter.\n", *argv);
                         return -1;
@@ -97,9 +99,7 @@ static int generate_toc(char *fname, int flag)
 		break;
 	case 1:		/* print the full markdown page */
 		file_append(stdout, fhead);
-		getchar();
 		file_append(stdout, ftoc);
-		getchar();
 		file_append(stdout, fbody);
 		break;
 	case 2:		/* overwrite the orignal markdown page */

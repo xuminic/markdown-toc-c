@@ -4,6 +4,10 @@ Written in C with standard libraries, making it light, fast and
 highly portable across various systems.
 
 <!--toc-->
+- [markdown-toc-c](#markdown-toc-c)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+  - [Options](#options)
 <!--toc-->
 
 ## Installation
