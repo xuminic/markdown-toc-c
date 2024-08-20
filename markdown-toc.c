@@ -7,6 +7,7 @@
 #define MAX_LINE_LENGTH 80
 
 static int generate_toc(char *fname, int flag);
+static int file_merge(FILE *fout, FILE *fhead, FILE *ftoc, FILE *fbody);
 static int file_append(FILE *fp, FILE *fn);
 static int make_toc(char *line, FILE *fout, int backtick);
 static int lets_toc(char *line, FILE *fout);
@@ -29,7 +30,7 @@ int main(int argc, char **argv)
                         return 0;
 		} else if (!strcmp(*argv, "-o") || !strcmp(*argv, "--overwrite")) {
 			owrt = 2;
-		} else if (!strcmp(*argv, "-O") || !strcmp(*argv, "--dryrun")) {
+		} else if (!strcmp(*argv, "-s") || !strcmp(*argv, "--show")) {
 			owrt = 1;
 		} else {
                         fprintf(stderr, "%s: unknown parameter.\n", *argv);
@@ -69,23 +70,26 @@ static int generate_toc(char *fname, int flag)
 	tocsm = btsm = 0;
 	while (fgets(line, sizeof(line), fin)) {
 		switch (tocsm) {
-		case 0:
+		case 0:		/* before TOC */
 			fputs(line, fhead);
 			if (!strncmp(line, "<!--toc-->", 10)) {
 				tocsm = 1;
 			}
 			break;
-		case 1:
+		case 1:		/* inside TOC */
 			if (!strncmp(line, "<!--toc-->", 10)) {
 				fputs(line, fbody);
 				tocsm = 2;
 			}
 			break;
-		case 2:
+		case 2:		/* after TOC */
 			fputs(line, fbody);
-			break;	/* inside the TOC */
+			break;
 		}
-		btsm = make_toc(line, ftoc, btsm);
+		/* ignore the contents inside TOC (state == 1) */
+		if (tocsm != 1) {
+			btsm = make_toc(line, ftoc, btsm);
+		}
 	}
 
 	if (fname == NULL) {
@@ -95,17 +99,13 @@ static int generate_toc(char *fname, int flag)
 	}
 	switch (flag) {
 	case 0:		/* only print the TOC part */
-		file_append(stdout, ftoc);
+		file_merge(stdout, NULL, ftoc, NULL);
 		break;
 	case 1:		/* print the full markdown page */
-		file_append(stdout, fhead);
-		file_append(stdout, ftoc);
-		file_append(stdout, fbody);
+		file_merge(stdout, fhead, ftoc, fbody);
 		break;
 	case 2:		/* overwrite the orignal markdown page */
-		file_append(fin, fhead);
-		file_append(fin, ftoc);
-		file_append(fin, fbody);
+		file_merge(fin, fhead, ftoc, fbody);
 		break;
 	}
 	if (fname) {
@@ -113,6 +113,38 @@ static int generate_toc(char *fname, int flag)
 	}
 	return 0;
 }		
+
+static int file_merge(FILE *fout, FILE *fhead, FILE *ftoc, FILE *fbody)
+{
+	if ((fbody == NULL) || (ftell(fbody) == 0)) {
+		/* if there's no TOC mark, the TOC would be outputed to the head */
+		if (ftoc) {
+			fputs("<!--toc-->\n", fout);
+			fputs("## Table of Contents\n", fout);
+			file_append(fout, ftoc);
+			fputs("<!--toc-->\n", fout);
+		}
+		if (fhead) {
+			file_append(fout, fhead);
+		}
+		if (fbody) {
+			fclose(fbody);
+		}
+	} else {
+		/* if there's no TOC mark, we just fill in the TOC content */
+		if (fhead) {
+			file_append(fout, fhead);
+		}
+		if (ftoc) {
+			fputs("## Table of Contents\n", fout);
+			file_append(fout, ftoc);
+		}
+		if (fbody) {
+			fclose(fbody);
+		}
+	}
+	return 0;
+}
 
 static int file_append(FILE *fp, FILE *fn)
 {

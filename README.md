@@ -3,13 +3,6 @@ This filter program generates a Table of Contents (TOC) from Markdown files.
 Written in C with standard libraries, making it light, fast and 
 highly portable across various systems.
 
-<!--toc-->
-- [markdown-toc-c](#markdown-toc-c)
-  - [Installation](#installation)
-  - [Quick Start](#quick-start)
-  - [Options](#options)
-<!--toc-->
-
 ## Installation
 Clone the repo:
 ```
@@ -26,15 +19,15 @@ make
   ```
   cat README.md | md-toc
   ```
-  The TOC will be printed out in th console.
+  The TOC will be printed out in the console.
 
 - read from files:
   ```
   md-toc README.md
   ```
-  The TOC will be printed out in th console.
+  The TOC will be printed out in the console.
 
-- overwite the TOC in the markdown files:
+- overwrite the TOC in the markdown files:
   
   Before doing so, you need to add a pair of place mark to let `md-toc` know 
   where to place the TOC. The place marks are HTML comments so they would be hidden 
@@ -48,10 +41,17 @@ make
   ```
   md-toc -o README1.md README2.md README3.md
   ```
-  `md-toc` can batch process the markdown files. Each file would be updated with the new TOC.
+  `md-toc` can batch process the markdown files. 
+  Each file would be updated with the new TOC.
+
+  If there's no `<!--toc-->` mark in the markdown file, 
+  the TOC will be saved at the beginning of the file.
 
 ## Options
 
 - `-o` aka `--overwrite`: update the markdown file with the TOC.
+- `-s` aka `--show`: show the markdown file with TOC in console, no overwrite.
 
+Without option, the `md-toc` will show only the TOC part in the console, 
+not the TOC with the input file.
 

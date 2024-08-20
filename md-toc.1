@@ -1,0 +1,84 @@
+.TH NAME SECTION
+.SH Name
+md-toc \- generate the Table Of Contents for markdown files
+
+.SH SYNOPSIS
+.B md-toc
+.I [OPTIONS] [markdown_files]  
+
+.SH DESCRIPTION
+.BR md-toc
+is a simple and quick command line tool written in C and standard libraries
+to generate the TOC for markdown files. It can read markdown files from 
+.I stdin
+or from the file system. 
+The table of contents can be output to 
+.I stdout
+or write back to the original file to update the previous TOC.
+
+.SH OPTIONS
+.TP
+.BR \-o , " \-\-overwrite"
+update the markdown file with the generated TOC. 
+The previous TOC will be overwritten.
+
+.TP
+.BR \-s , "\-\-show"
+do not write back to the original file, write to the
+.I stdout
+instead. It can be used for preview before doing the permanent change.
+
+
+.SH "TOC Mark"
+.B md-toc
+supports write the generated TOC back to the source file.
+If there has been a TOC already, the old TOC will be replaced.
+
+By default, the TOC would be placed in the head of the file.
+It can be changed to wherever you like in the markdown file 
+if you place a pair of 
+.B TOC Mark
+like this:
+
+.BR <!--toc-->
+
+.BR <!--toc-->
+
+In that case, the TOC will be updated inside the
+.B TOC Mark
+pair.
+
+
+.SH COPYING
+BSD 2-Clause License
+
+Copyright (c) 2024, Andy Xuming
+
+See LICENSE in the distribution.
+
+
+.SH EXAMPLES
+.TP
+.B cat README.md | md-toc
+filtering from pipe. The TOC will be printed out in the console.
+
+.TP
+.B md-toc README.md
+generate TOC from the file. The TOC will be printed in the console.
+
+.TP
+.B md-toc -o README.md
+generate TOC and write back to the markdown file. 
+The previous TOC will be overwritten.
+
+.TP
+.B md-toc -s README.md
+generate TOC and print the full markdown file including TOC.
+It won't change the original file.
+
+.TP
+.B md-toc -o *.md
+updating the TOC in batch mode.
+
+
+
